@@ -21,15 +21,22 @@ database_url = os.getenv('DATABASE_URL')
 if database_url is None:
     raise ValueError("DATABASE_URL environment variable is not set")
 
+print(f"--->{database_url}")
 config.set_main_option('sqlalchemy.url', database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
+# add your models' MetaData object here
 # for 'autogenerate' support
-from app.db.base import Base  # Import Base where your models are registered
+from app.db.base import Base
+from app.models.email_verification_token import EmailVerificationToken
+from app.models.mfa import MFA
+from app.models.password_reset_token import PasswordResetToken
+from app.models.user_session import UserSession
+from app.models.user import User
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
