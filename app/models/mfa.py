@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, func
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, func, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -9,7 +9,7 @@ class MFA(Base):
     __tablename__ = 'mfa'
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(ULIDType(), nullable=False)
+    user_id = Column(ULIDType(), ForeignKey('users.id'), nullable=False)
     mfa_type = Column(String, nullable=False)
     secret = Column(String)
     enabled = Column(Boolean, default=False)

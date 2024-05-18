@@ -18,3 +18,7 @@ class ULIDType(TypeDecorator):
         if value is None:
             return value
         return ulid.from_str(value)
+    
+    @staticmethod
+    def create_ulid():
+        return ulid.new()

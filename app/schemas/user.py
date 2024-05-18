@@ -1,18 +1,38 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, field_validator, Field
+import re
 
 class UserBase(BaseModel):
-    email: str
+    username: str = Field(min_length=4, max_length=32)
+    email: EmailStr = Field(...)
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=8)
+    @field_validator('password')
+    def validate_password(cls, v):
+        pattern = re.compile(r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?\":{}|<>]).{8,}$")
+        if not pattern.match(v):
+            raise ValueError(
+                'Password must contain at least 1 uppercase letter, '
+                '1 lowercase letter, 1 number, and 1 special character.'
+            )
+        return v
 
 class UserInDB(UserBase):
-    hashed_password: str
+    hashed_password: str = Field(...)
 
 class User(UserBase):
-    id: int
-    is_active: bool
-    is_superuser: bool
+    id: str = Field(..., exclude=True)
+    is_active: bool = Field(...)
+    is_verified: bool = Field(...)
+    is_superuser: bool = Field(..., exclude=True)
+
+    @field_validator('id', mode='before')
+    def validate_id(cls, v):
+        return str(v)
 
     class Config:
         orm_mode = True
+
+class UserDetailed(User):
+    id: str = Field(..., exclude=False)
+    is_superuser: bool = Field(..., exclude=False)
