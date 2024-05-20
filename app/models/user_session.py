@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, ForeignKey
+from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
+                        func)
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -15,5 +16,6 @@ class UserSession(Base):
     device_type = Column(String)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    active = Column(Boolean, default=True, nullable=False)
 
     user = relationship("User", back_populates="sessions")

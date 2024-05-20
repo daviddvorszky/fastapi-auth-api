@@ -11,3 +11,4 @@ pyjwt
 asyncpg
 python-dotenv
 ulid-py
+fastapi-jwt-auth @ git+https://github.com/vvpreo/fastapi-jwt-auth@master

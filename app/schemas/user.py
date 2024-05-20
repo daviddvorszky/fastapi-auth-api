@@ -1,5 +1,7 @@
-from pydantic import BaseModel, EmailStr, field_validator, Field
 import re
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
 
 class UserBase(BaseModel):
     username: str = Field(min_length=4, max_length=32)
@@ -17,6 +19,10 @@ class UserCreate(UserBase):
             )
         return v
 
+class UserLogin(BaseModel):
+    username: str = Field(min_length=4, max_length=32)
+    password: str = Field(...)
+
 class UserInDB(UserBase):
     hashed_password: str = Field(...)
 
@@ -31,7 +37,7 @@ class User(UserBase):
         return str(v)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserDetailed(User):
     id: str = Field(..., exclude=False)
