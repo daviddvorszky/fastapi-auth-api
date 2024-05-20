@@ -3,11 +3,11 @@ version: "3.8"
 services:
   web:
     build: .
-    command: ["sh", "../docker/entrypoint.sh"]
+    command: ["sh", "/entrypoint.sh"]
     volumes:
       - ./app:/app
-      - ./docker:/docker
-      - ./connection_test.py:/connection_test.py
+      #- ./docker:/docker
+      - ./docker/entrypoint.sh:/entrypoint.sh
     ports:
       - "8000:8000"
     env_file:
