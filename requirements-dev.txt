@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic-settings
+python-jose
+passlib[bcrypt]
+alembic
+pytest
+pyjwt
+asyncpg
+python-dotenv
+ulid-py
+fastapi-jwt-auth @ git+https://github.com/vvpreo/fastapi-jwt-auth@master
+isort
+black
