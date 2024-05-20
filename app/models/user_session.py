@@ -12,7 +12,7 @@ class UserSession(Base):
     user_id = Column(ULIDType(), ForeignKey("users.id"), nullable=False)
     refresh_token = Column(String, nullable=False, unique=True)
     ip_address = Column(String(45))
-    device_type = Column(String)
+    user_agent = Column(String)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     active = Column(Boolean, default=True, nullable=False)

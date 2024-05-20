@@ -1,15 +1,18 @@
 import asyncio
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.user import crud_user
+from app.crud.user_session import crud_session
 from app.db.session import get_db
+from app.models.custom_types import ULIDType
 from app.schemas.token import JWTSettings
 from app.schemas.user import UserLogin
+from app.schemas.user_session import SessionCreate
 
 router = APIRouter()
 
@@ -33,6 +36,7 @@ async def login_for_access_token(
     db: AsyncSession = Depends(get_db),
     form_data: UserLogin = Depends(),
     Authorize: AuthJWT = Depends(),
+    request: Request = None,
 ):
     user = await crud_user.authenticate(
         db, username=form_data.username, password=form_data.password
@@ -60,7 +64,14 @@ async def login_for_access_token(
     Authorize.set_access_cookies(access_token)
     Authorize.set_refresh_cookies(refresh_token)
 
-    # TODO: store the session in the database
+    session_data = SessionCreate(
+        user_id=str(user.id),
+        refresh_token=refresh_token,
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    _ = await crud_session.create_session(db, session_data)
 
     return {"access_token": access_token, "refresh_token": refresh_token}
 
