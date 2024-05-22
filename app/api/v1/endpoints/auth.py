@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import jwt
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi_jwt_auth import AuthJWT
@@ -60,13 +61,16 @@ async def login_for_access_token(
 
     access_token = Authorize.create_access_token(subject=user.username)
     refresh_token = Authorize.create_refresh_token(subject=user.username)
+    decoded_token = jwt.decode(refresh_token, settings.SECRET_KEY)
 
     Authorize.set_access_cookies(access_token)
     Authorize.set_refresh_cookies(refresh_token)
 
+    print(f"decoded jti: {decoded_token['jti']}")
+
     session_data = SessionCreate(
         user_id=str(user.id),
-        refresh_token=refresh_token,
+        refresh_token=decoded_token['jti'],
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent"),
     )
@@ -106,15 +110,40 @@ async def refresh_access_token(
 
 
 @router.delete("/logout")
-def logout(Authorize: AuthJWT = Depends()):
-    Authorize.jwt_required()
+async def logout(Authorize: AuthJWT = Depends(), db: AsyncSession = Depends(get_db)
+):
+    Authorize.jwt_refresh_token_required()
+    refresh_token = Authorize.get_raw_jwt()
+    await crud_session.deactivate_session(db, refresh_token['jti'])
+
     Authorize.jwt_optional()
     access_token = Authorize.get_raw_jwt()
     if access_token:
         jti = access_token["jti"]
         exp = access_token["exp"]
         denylist.append({"jti": jti, "exp": exp})
+
     Authorize.unset_jwt_cookies()
+
+    return {"msg": "Successfully logout"}
+
+
+@router.delete("/logout_all")
+async def logout_all(Authorize: AuthJWT = Depends(), db: AsyncSession = Depends(get_db)):
+    Authorize.jwt_refresh_token_required()
+    refresh_token = Authorize.get_raw_jwt()
+    username = refresh_token['sub']
+    await crud_session.deactivate_all_sessions(db, username)
+
+    Authorize.jwt_optional()
+    access_token = Authorize.get_raw_jwt()
+    if access_token:
+        jti = access_token["jti"]
+        exp = access_token["exp"]
+        denylist.append({"jti": jti, "exp": exp})
+
+    Authorize.unset_jwt_cookies()
+
     return {"msg": "Successfully logout"}
 
 
