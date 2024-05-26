@@ -5,12 +5,13 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi_jwt_auth.exceptions import AuthJWTException
 
+from app.core.token_handler import schedule_clean_up
 from app.api.v1.endpoints import auth, health, users
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(auth.schedule_clean_up())
+    asyncio.create_task(schedule_clean_up())
     yield
     print("After")
 

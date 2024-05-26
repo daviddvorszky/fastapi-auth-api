@@ -1,35 +1,20 @@
-import asyncio
-from datetime import datetime
 import jwt
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from app.core.config import settings
 from app.crud.user import crud_user
 from app.crud.user_session import crud_session
 from app.db.session import get_db
+from app.core.token_handler import verify_active_refresh_token, get_verify_access_token_dependency, invalidate_access_token
 from app.models.custom_types import ULIDType
-from app.schemas.token import JWTSettings
 from app.schemas.user import UserLogin
 from app.schemas.user_session import SessionCreate
 
 router = APIRouter()
-
-
-@AuthJWT.load_config
-def get_config():
-    return JWTSettings()
-
-
-denylist = []
-
-
-@AuthJWT.token_in_denylist_loader
-def check_if_token_in_denylist(decrypted_token):
-    jti = decrypted_token["jti"]
-    return any(d["jti"] == jti for d in denylist)
 
 
 @router.post("/login")
@@ -82,11 +67,12 @@ async def login_for_access_token(
 
 @router.post("/access_token")
 async def refresh_access_token(
-    Authorize: AuthJWT = Depends(), db: AsyncSession = Depends(get_db)
+    refresh_token: dict = Depends(verify_active_refresh_token),
+    access_token: dict = Depends(get_verify_access_token_dependency(required=False)),
+    Authorize: AuthJWT = Depends(),
+    db: AsyncSession = Depends(get_db),
 ):
-    # Validate refresh token
-    Authorize.jwt_refresh_token_required()
-    username = Authorize.get_jwt_subject()
+    username = refresh_token['sub']
     user = await crud_user.get_user_by_username(db, username)
     if not user:
         raise HTTPException(
@@ -94,15 +80,7 @@ async def refresh_access_token(
             detail="Invalid refresh token",
         )
 
-    # Invalidate previous access token
-    Authorize.jwt_optional()
-    access_token = Authorize.get_raw_jwt()
-    if access_token:
-        jti = access_token["jti"]
-        exp = access_token["exp"]
-        denylist.append({"jti": jti, "exp": exp})
-        Authorize.unset_access_cookies()
-
+    await invalidate_access_token(access_token)
     access_token = Authorize.create_access_token(subject=user.username)
     Authorize.set_access_cookies(access_token)
 
@@ -110,52 +88,28 @@ async def refresh_access_token(
 
 
 @router.delete("/logout")
-async def logout(Authorize: AuthJWT = Depends(), db: AsyncSession = Depends(get_db)
+async def logout(
+    refresh_token: dict = Depends(verify_active_refresh_token),
+    access_token: dict = Depends(get_verify_access_token_dependency(required=False)),
+    Authorize: AuthJWT = Depends(),
+    db: AsyncSession = Depends(get_db),
 ):
-    Authorize.jwt_refresh_token_required()
-    refresh_token = Authorize.get_raw_jwt()
     await crud_session.deactivate_session(db, refresh_token['jti'])
-
-    Authorize.jwt_optional()
-    access_token = Authorize.get_raw_jwt()
-    if access_token:
-        jti = access_token["jti"]
-        exp = access_token["exp"]
-        denylist.append({"jti": jti, "exp": exp})
-
+    await invalidate_access_token(access_token)
     Authorize.unset_jwt_cookies()
 
     return {"msg": "Successfully logout"}
 
 
 @router.delete("/logout_all")
-async def logout_all(Authorize: AuthJWT = Depends(), db: AsyncSession = Depends(get_db)):
-    Authorize.jwt_refresh_token_required()
-    refresh_token = Authorize.get_raw_jwt()
-    username = refresh_token['sub']
-    await crud_session.deactivate_all_sessions(db, username)
-
-    Authorize.jwt_optional()
-    access_token = Authorize.get_raw_jwt()
-    if access_token:
-        jti = access_token["jti"]
-        exp = access_token["exp"]
-        denylist.append({"jti": jti, "exp": exp})
-
+async def logout_all(
+    refresh_token: dict = Depends(verify_active_refresh_token),
+    access_token: Optional[dict] = Depends(get_verify_access_token_dependency(required=False)),
+    Authorize: AuthJWT = Depends(),
+    db: AsyncSession = Depends(get_db),
+):
+    await crud_session.deactivate_all_sessions(db=db, username=refresh_token['sub'])
+    await invalidate_access_token(access_token)
     Authorize.unset_jwt_cookies()
 
     return {"msg": "Successfully logout"}
-
-
-def clean_up_exipred_access_tokens():
-    now = int(datetime.now().timestamp())
-    for item in denylist:
-        expired = item["exp"] < now
-        if expired:
-            denylist.remove(item)
-
-
-async def schedule_clean_up():
-    while True:
-        clean_up_exipred_access_tokens()
-        await asyncio.sleep(settings.DENIED_TOKEN_CLEAN_UP_MINUTES)

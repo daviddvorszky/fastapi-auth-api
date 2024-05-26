@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from typing import Optional
 
 from app.models.user import User
 from app.models.user_session import UserSession
@@ -13,7 +14,7 @@ class CRUDUserSession:
     async def get_session(self, db: AsyncSession, session_id: int):
         raise NotImplementedError()
     
-    async def get_session_by_token(self, db: AsyncSession, refresh_token: str):
+    async def get_session_by_token(self, db: AsyncSession, refresh_token: str) -> Optional[UserSession]:
         result = await db.execute(select(UserSession).filter(UserSession.refresh_token == refresh_token))
         return result.scalars().first()
 
@@ -52,6 +53,13 @@ class CRUDUserSession:
         await db.execute(stmt)
         await db.commit()
 
+    async def is_session_active(self, db: AsyncSession, jti: str) -> Optional[bool]:
+        session = await self.get_session_by_token(db, jti)
+        
+        if not session:
+            return None
+        
+        return session.active
         
 
 
