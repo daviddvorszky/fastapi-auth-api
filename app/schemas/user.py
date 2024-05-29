@@ -13,7 +13,7 @@ class UserCreate(UserBase):
 
     @field_validator("password")
     def validate_password(cls, v):
-        validate_password(v)
+        return validate_password(v)
 
 
 class UserLogin(BaseModel):
