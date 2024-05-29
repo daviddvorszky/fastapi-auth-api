@@ -1,6 +1,6 @@
-import re
-
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.core.validators import validate_password
 
 
 class UserBase(BaseModel):
@@ -13,15 +13,7 @@ class UserCreate(UserBase):
 
     @field_validator("password")
     def validate_password(cls, v):
-        pattern = re.compile(
-            r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?\":{}|<>]).{8,}$"
-        )
-        if not pattern.match(v):
-            raise ValueError(
-                "Password must contain at least 1 uppercase letter, "
-                "1 lowercase letter, 1 number, and 1 special character."
-            )
-        return v
+        validate_password(v)
 
 
 class UserLogin(BaseModel):
